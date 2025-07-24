@@ -1,4 +1,4 @@
-module github.com/Josefh90/gobox
+module gobox
 
 go 1.24.4
 
