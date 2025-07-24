@@ -10,7 +10,7 @@ import (
 type FileNode struct {
 	Name     string      `json:"name"`
 	IsDir    bool        `json:"isDir"`
-	Children []*FileNode `json:"children,omitempty"` // pointer slice
+	Children []*FileNode `json:"children,omitempty"` // pointer slice to do add comments
 }
 
 func DirToJSON(root string) (*FileNode, error) {
