@@ -1,4 +1,4 @@
-module gobox_utils
+module gobox
 
 go 1.24.4
 
