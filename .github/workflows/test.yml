@@ -7,6 +7,18 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:            
+    inputs:
+      release_type:
+        description: 'Type of version bump'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
 permissions:
   contents: write  
   
@@ -24,11 +36,10 @@ jobs:
       - name: Run tests
         run: go test ./... -v -cover
   
-  
   version:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -49,13 +60,36 @@ jobs:
         id: create_tag
         run: |
           old_tag="${{ steps.get_tag.outputs.tag }}"
+          release_type="${{ github.event.inputs.release_type || 'patch' }}"
+
           if [[ "$old_tag" == "" ]]; then
-            new_tag="v0.1.0"
+            major=0
+            minor=1
+            patch=0
           else
             IFS='.' read -r -a parts <<< "${old_tag#v}"
-            patch=$((parts[2]+1))
-            new_tag="v${parts[0]}.${parts[1]}.$patch"
+            major=${parts[0]}
+            minor=${parts[1]}
+            patch=${parts[2]}
           fi
+
+          case "$release_type" in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch|*)
+              patch=$((patch + 1))
+              ;;
+          esac
+
+          new_tag="v${major}.${minor}.${patch}"
+
           echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
           git tag "$new_tag"
           git push origin "$new_tag"
