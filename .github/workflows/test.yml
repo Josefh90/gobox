@@ -1,3 +1,27 @@
+name: Go Test & Versioning
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.22
+      - name: Install dependencies
+        run: go mod tidy
+      - name: Run tests
+        run: go test ./... -v -cover
+
   version:
     needs: test
     runs-on: ubuntu-latest
@@ -5,7 +29,7 @@
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # important: fetch full history for tags
+          fetch-depth: 0  # fetch full git history for tags
 
       - name: Set up Git
         run: |
@@ -15,21 +39,20 @@
       - name: Get latest tag
         id: get_tag
         run: |
-          tag=$(git describe --tags `git rev-list --tags --max-count=1`)
+          tag=$(git describe --tags `git rev-list --tags --max-count=1` 2>/dev/null || echo "")
           echo "Latest tag: $tag"
-          echo "tag=${tag}" >> $GITHUB_OUTPUT
+          echo "tag=$tag" >> $GITHUB_OUTPUT
 
       - name: Create new tag
-        id: tag
         run: |
-          old_tag=${{ steps.get_tag.outputs.tag }}
+          old_tag="${{ steps.get_tag.outputs.tag }}"
           if [[ "$old_tag" == "" ]]; then
             new_tag="v0.1.0"
           else
-            # bump patch version: v1.2.3 -> v1.2.4
             IFS='.' read -r -a parts <<< "${old_tag#v}"
-            patch=$((parts[2]+1)
+            patch=$((parts[2]+1))
             new_tag="v${parts[0]}.${parts[1]}.$patch"
           fi
+          echo "Creating tag: $new_tag"
           git tag "$new_tag"
           git push origin "$new_tag"
