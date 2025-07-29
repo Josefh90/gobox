@@ -45,6 +45,7 @@ func StartTerminalStream(containerName string, ctx context.Context) error {
 		return errors.New("terminal session already running")
 	}
 
+	println("Starting terminal stream...")
 	cmd := exec.Command("docker", "exec", "-it", containerName, "bash")
 
 	ptyFile, err := pty.Start(cmd)
@@ -59,9 +60,10 @@ func StartTerminalStream(containerName string, ctx context.Context) error {
 		IsActive: true,
 	}
 
+	// Start reading from terminal and emit data to frontend
 	go func() {
 		scanner := bufio.NewScanner(ptyFile)
-		scanner.Split(bufio.ScanBytes) // character-by-character
+		scanner.Split(bufio.ScanBytes)
 
 		for scanner.Scan() {
 			runtime.EventsEmit(ctx, "terminal:data", scanner.Text())
@@ -69,6 +71,17 @@ func StartTerminalStream(containerName string, ctx context.Context) error {
 
 		terminalInstance.IsActive = false
 	}()
+
+	//  Listen for user input and write it to the PTY
+	runtime.EventsOn(ctx, "terminal:input", func(data ...interface{}) {
+		if len(data) == 0 {
+			return
+		}
+		input, ok := data[0].(string)
+		if ok {
+			WriteToTerminal(input)
+		}
+	})
 
 	return nil
 }
